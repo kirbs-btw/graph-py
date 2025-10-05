@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graph-py"
+version = "0.1.0"
+description = "A Python library for graph algorithms and data structures."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+  { name="Bastian Lipka" }
+]
+dependencies = [
+  "networkx>=3.0",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/kirbs-btw/graph-py"
+Issues = "https://github.com/kirbs-btw/graph-py/issues"

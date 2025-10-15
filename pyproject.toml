@@ -19,3 +19,6 @@ requires-python = ">=3.8"
 [project.urls]
 Homepage = "https://github.com/kirbs-btw/graph-py"
 Issues = "https://github.com/kirbs-btw/graph-py/issues"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

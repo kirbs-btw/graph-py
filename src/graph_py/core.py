@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -33,6 +33,18 @@ class Node(BaseModel):
         neighbor_ids = {e.target if e.source == self.id else e.source for e in self.edges}
         return [n for n in self.graph.nodes if n.id in neighbor_ids]
 
+class PropertyNode(Node):
+    """Node subclass that stores arbitrary key/value properties."""
+    properties: dict[str, Any] = Field(default_factory=dict)
+
+    def set_property(self, key: str, value: Any) -> None:
+        """Store a property value under the given key."""
+        self.properties[key] = value
+
+    def get_property(self, key: str, default: Any = None) -> Any:
+        """Retrieve a property value, returning default when missing."""
+        return self.properties.get(key, default)
+
 class Graph(BaseModel):
     """Graph-level structure holding nodes and edges."""
     id: str
@@ -65,5 +77,5 @@ class Graph(BaseModel):
         return adj
 
 
-__all__ = ["Graph", "Edge", "Node"]
+__all__ = ["Graph", "Edge", "Node", "PropertyNode"]
 

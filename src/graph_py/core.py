@@ -1,7 +1,11 @@
 from __future__ import annotations
+
+import math
 import re
+from collections import Counter
 from abc import ABC, abstractmethod
-from typing import Optional, List, TYPE_CHECKING, Any, Sequence, Dict, Union
+from typing import Optional, List, TYPE_CHECKING, Any, Sequence, Dict, Union, Iterable
+
 from pydantic import BaseModel, Field, PrivateAttr
 
 if TYPE_CHECKING:
@@ -54,6 +58,150 @@ class PropertyNode(Node):
     def get_property(self, key: str, default: Any = None) -> Any:
         """Retrieve a property value, returning default when missing."""
         return self.properties.get(key, default)
+
+
+_DEFAULT_TOKEN_PATTERN = re.compile(r"\w+")
+
+
+def _resolve_node_fields(node: Node, fields: Optional[Sequence[str]]) -> List[str]:
+    """Determine which fields should be examined for a node search."""
+    if fields is not None:
+        seen: set[str] = set()
+        resolved: List[str] = []
+        for field in fields:
+            if field not in seen:
+                resolved.append(field)
+                seen.add(field)
+        return resolved
+    if isinstance(node, PropertyNode):
+        return ["id", "name", *node.properties.keys()]
+    return ["id", "name"]
+
+
+def _extract_node_field(node: Node, field_name: str) -> Any:
+    """Return a field value from a node or its properties."""
+    if hasattr(node, field_name):
+        return getattr(node, field_name)
+    if isinstance(node, PropertyNode):
+        return node.properties.get(field_name)
+    return None
+
+
+def _coerce_to_text(value: Any) -> Optional[str]:
+    """Convert arbitrary field values into textual form for search."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    try:
+        return repr(value)
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+
+def _collect_field_texts(node: Node, fields: Optional[Sequence[str]]) -> Dict[str, str]:
+    """Create a mapping of candidate field names to their textual representation."""
+    texts: Dict[str, str] = {}
+    for field_name in _resolve_node_fields(node, fields):
+        value = _extract_node_field(node, field_name)
+        text = _coerce_to_text(value)
+        if text:
+            texts[field_name] = text
+    return texts
+
+
+def _determine_token_pattern(parameters: Dict[str, Any]) -> re.Pattern[str]:
+    """Compile a token pattern from search parameters or use the default."""
+    pattern_value = parameters.get("token_pattern") if parameters else None
+    if isinstance(pattern_value, re.Pattern):
+        return pattern_value
+    if isinstance(pattern_value, str):
+        try:
+            return re.compile(pattern_value)
+        except re.error as exc:
+            raise SearchError(f"Invalid token pattern '{pattern_value}': {exc}") from exc
+    return _DEFAULT_TOKEN_PATTERN
+
+
+def _prepare_stop_words(parameters: Dict[str, Any], *, case_sensitive: bool) -> set[str]:
+    """Extract stop words from search parameters, normalising case."""
+    stop_words_value = parameters.get("stop_words") if parameters else None
+    if not stop_words_value:
+        return set()
+    if isinstance(stop_words_value, str):
+        words = stop_words_value.split()
+    elif isinstance(stop_words_value, Iterable):
+        words = list(stop_words_value)
+    else:
+        return set()
+    if not case_sensitive:
+        return {word.lower() for word in words if isinstance(word, str)}
+    return {word for word in words if isinstance(word, str)}
+
+
+def _tokenize_for_search(
+    text: str,
+    *,
+    pattern: re.Pattern[str],
+    case_sensitive: bool,
+    stop_words: set[str],
+) -> List[str]:
+    """Tokenize text using the provided pattern and normalise case/stop words."""
+    tokens = pattern.findall(text)
+    if not tokens:
+        return []
+    if not case_sensitive:
+        tokens = [token.lower() for token in tokens]
+    if stop_words:
+        tokens = [token for token in tokens if token not in stop_words]
+    return tokens
+
+
+def _tokenize_documents(
+    nodes: Sequence[Node],
+    *,
+    fields: Optional[Sequence[str]],
+    pattern: re.Pattern[str],
+    case_sensitive: bool,
+    stop_words: set[str],
+) -> List[tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]]:
+    """Create tokenised representations for each node."""
+    documents: List[tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]] = []
+    for node in nodes:
+        field_texts = _collect_field_texts(node, fields)
+        if not field_texts:
+            continue
+        doc_tokens: List[str] = []
+        field_token_counts: Dict[str, Counter[str]] = {}
+        for field_name, text in field_texts.items():
+            field_tokens = _tokenize_for_search(
+                text, pattern=pattern, case_sensitive=case_sensitive, stop_words=stop_words
+            )
+            if not field_tokens:
+                continue
+            field_token_counts[field_name] = Counter(field_tokens)
+            doc_tokens.extend(field_tokens)
+        if not doc_tokens:
+            continue
+        token_counts = Counter(doc_tokens)
+        documents.append((node, sum(token_counts.values()), token_counts, field_texts, field_token_counts))
+    return documents
+
+
+def _build_highlights(
+    field_texts: Dict[str, str],
+    field_token_counts: Dict[str, Counter[str]],
+    relevant_terms: Iterable[str],
+) -> Dict[str, str]:
+    """Select field texts that contain at least one relevant term."""
+    highlights: Dict[str, str] = {}
+    relevant_set = set(relevant_terms)
+    for field_name, token_counts in field_token_counts.items():
+        if any(term in token_counts for term in relevant_set):
+            highlights[field_name] = field_texts[field_name]
+    return highlights
 
 class NodeSearchQuery(BaseModel):
     """Container describing a node search request."""
@@ -121,55 +269,184 @@ class RegexNodeSearch(NodeSearchStrategy):
 
     def _match_node(self, node: Node, fields: Optional[List[str]], pattern: re.Pattern[str]) -> Dict[str, Any]:
         """Return match metadata when pattern hits; otherwise an empty dict."""
-        candidate_fields = fields or self._resolve_fields(node)
+        candidate_fields = _resolve_node_fields(node, fields)
         highlights: Dict[str, str] = {}
         for field_name in candidate_fields:
-            value = self._extract_field(node, field_name)
-            if value is None:
+            value = _extract_node_field(node, field_name)
+            text = _coerce_to_text(value)
+            if not text:
                 continue
-            if isinstance(value, (int, float)):
-                candidate_text = str(value)
-            elif isinstance(value, str):
-                candidate_text = value
-            else:
-                candidate_text = repr(value)
-
-            if pattern.search(candidate_text):
-                highlights[field_name] = candidate_text
+            if pattern.search(text):
+                highlights[field_name] = text
 
         if not highlights:
             return {}
         return {"score": len(highlights), "highlights": highlights}
 
-    def _resolve_fields(self, node: Node) -> List[str]:
-        if isinstance(node, PropertyNode):
-            return ["id", "name", *node.properties.keys()]
-        return ["id", "name"]
-
-    def _extract_field(self, node: Node, field_name: str) -> Any:
-        if hasattr(node, field_name):
-            return getattr(node, field_name)
-        if isinstance(node, PropertyNode):
-            return node.properties.get(field_name)
-        return None
-
 class TFIDFNodeSearch(NodeSearchStrategy):
-    """Placeholder for TF-IDF based node search."""
+    """Term-frequency inverse-document-frequency node search."""
 
-    def __init__(self) -> None:
-        super().__init__(name="tf_idf")
+    def __init__(self, *, target_fields: Optional[List[str]] = None, name: Optional[str] = None) -> None:
+        super().__init__(name=name or "tf_idf")
+        self._default_fields = target_fields
 
     def search(self, nodes: Sequence[Node], query: NodeSearchQuery) -> List[NodeSearchResult]:
-        raise NotImplementedError("TF-IDF search strategy not implemented.")
+        pattern = _determine_token_pattern(query.parameters)
+        stop_words = _prepare_stop_words(query.parameters, case_sensitive=query.case_sensitive)
+        query_tokens = _tokenize_for_search(
+            query.pattern,
+            pattern=pattern,
+            case_sensitive=query.case_sensitive,
+            stop_words=stop_words,
+        )
+        if not query_tokens:
+            return []
+
+        query_counter = Counter(query_tokens)
+        documents = _tokenize_documents(
+            nodes,
+            fields=query.fields or self._default_fields,
+            pattern=pattern,
+            case_sensitive=query.case_sensitive,
+            stop_words=stop_words,
+        )
+        if not documents:
+            return []
+
+        num_docs = len(documents)
+        query_terms = list(query_counter.keys())
+        df_counts: Dict[str, int] = {term: 0 for term in query_terms}
+        for _, _, token_counts, _, _ in documents:
+            for term in query_terms:
+                if token_counts.get(term, 0):
+                    df_counts[term] += 1
+
+        idf: Dict[str, float] = {}
+        for term, df in df_counts.items():
+            if df == 0:
+                continue
+            idf[term] = math.log((1 + num_docs) / (1 + df)) + 1.0
+        if not idf:
+            return []
+
+        query_length = sum(query_counter.values()) or 1
+        query_tf = {term: query_counter[term] / query_length for term in idf.keys()}
+        query_norm = math.sqrt(sum((weight * idf[term]) ** 2 for term, weight in query_tf.items())) or 1.0
+
+        results: List[NodeSearchResult] = []
+        for node, doc_length, token_counts, field_texts, field_token_counts in documents:
+            doc_length = doc_length or 1
+            dot_product = 0.0
+            doc_norm = 0.0
+            for term in idf.keys():
+                term_frequency = token_counts.get(term, 0)
+                if not term_frequency:
+                    continue
+                doc_tf = term_frequency / doc_length
+                doc_weight = doc_tf * idf[term]
+                query_weight = query_tf[term] * idf[term]
+                dot_product += doc_weight * query_weight
+                doc_norm += doc_weight * doc_weight
+            if dot_product <= 0 or doc_norm <= 0:
+                continue
+            score = dot_product / (math.sqrt(doc_norm) * query_norm)
+            highlights = _build_highlights(field_texts, field_token_counts, idf.keys())
+            results.append(
+                NodeSearchResult(
+                    node_id=node.id,
+                    score=score,
+                    highlights=highlights,
+                    node=node,
+                )
+            )
+
+        results.sort(key=lambda item: (-item.score if item.score is not None else 0.0, item.node_id))
+        if query.limit:
+            results = results[: query.limit]
+        return results
 
 class BM25NodeSearch(NodeSearchStrategy):
-    """Placeholder for BM25 based node search."""
+    """Okapi BM25 ranking search strategy."""
 
-    def __init__(self) -> None:
-        super().__init__(name="bm25")
+    def __init__(
+        self,
+        *,
+        target_fields: Optional[List[str]] = None,
+        name: Optional[str] = None,
+        k1: float = 1.5,
+        b: float = 0.75,
+    ) -> None:
+        super().__init__(name=name or "bm25")
+        self._default_fields = target_fields
+        self.k1 = k1
+        self.b = b
 
     def search(self, nodes: Sequence[Node], query: NodeSearchQuery) -> List[NodeSearchResult]:
-        raise NotImplementedError("BM25 search strategy not implemented.")
+        pattern = _determine_token_pattern(query.parameters)
+        stop_words = _prepare_stop_words(query.parameters, case_sensitive=query.case_sensitive)
+        query_tokens = _tokenize_for_search(
+            query.pattern,
+            pattern=pattern,
+            case_sensitive=query.case_sensitive,
+            stop_words=stop_words,
+        )
+        if not query_tokens:
+            return []
+
+        query_counter = Counter(query_tokens)
+        documents = _tokenize_documents(
+            nodes,
+            fields=query.fields or self._default_fields,
+            pattern=pattern,
+            case_sensitive=query.case_sensitive,
+            stop_words=stop_words,
+        )
+        if not documents:
+            return []
+
+        num_docs = len(documents)
+        avg_doc_len = sum(doc_length for _, doc_length, _, _, _ in documents) / num_docs
+        query_terms = list(query_counter.keys())
+        df_counts: Dict[str, int] = {term: 0 for term in query_terms}
+        for _, _, token_counts, _, _ in documents:
+            for term in query_terms:
+                if token_counts.get(term, 0):
+                    df_counts[term] += 1
+
+        idf: Dict[str, float] = {}
+        for term, df in df_counts.items():
+            if df == 0:
+                continue
+            idf[term] = math.log(1 + ((num_docs - df + 0.5) / (df + 0.5)))
+        if not idf:
+            return []
+
+        results: List[NodeSearchResult] = []
+        for node, doc_length, token_counts, field_texts, field_token_counts in documents:
+            score = 0.0
+            for term in idf.keys():
+                freq = token_counts.get(term, 0)
+                if not freq:
+                    continue
+                numerator = freq * (self.k1 + 1)
+                denominator = freq + self.k1 * (1 - self.b + self.b * (doc_length / (avg_doc_len or 1)))
+                score += idf[term] * (numerator / denominator)
+            if score <= 0:
+                continue
+            highlights = _build_highlights(field_texts, field_token_counts, idf.keys())
+            results.append(
+                NodeSearchResult(
+                    node_id=node.id,
+                    score=score,
+                    highlights=highlights,
+                    node=node,
+                )
+            )
+
+        results.sort(key=lambda item: (-item.score if item.score is not None else 0.0, item.node_id))
+        if query.limit:
+            results = results[: query.limit]
+        return results
 
 class Graph(BaseModel):
     """Graph-level structure holding nodes and edges."""

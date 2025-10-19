@@ -11,3 +11,8 @@ This is a project in memory python graph handling
 # Graph Operations
 - union
 - intersection 
+
+# Work in progress 
+Adding TF IDF 
+Adding BM25
+Adding Vector search

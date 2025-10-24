@@ -470,6 +470,24 @@ class Graph(BaseModel):
         """Add an edge and ensure referenced nodes exist."""
         self.edges.append(edge)
 
+    def number_of_nodes(self) -> int:
+        """Return the total number of nodes stored in the graph."""
+        return len(self.nodes)
+
+    def number_of_edges(self) -> int:
+        """Return the total number of edges stored in the graph."""
+        return len(self.edges)
+
+    def size(self) -> int:
+        """Alias for the number of edges, matching common graph terminology."""
+        return self.number_of_edges()
+
+    def compute_metrics(self, *, include_pairwise: bool = False) -> "GraphMetrics":
+        """Compute graph-level metrics such as degree distribution and distances."""
+        from .metrics import compute_metrics
+
+        return compute_metrics(self, include_pairwise=include_pairwise)
+
     def get_node(self, node_id: str) -> Optional[Node]:
         return next((n for n in self.nodes if n.id == node_id), None)
 

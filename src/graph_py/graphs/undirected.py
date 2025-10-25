@@ -1,10 +1,11 @@
+from typing import Dict, List
 from ..core import Graph, Edge, Node
 
 class UndirectedGraph(Graph):
     """Graph representation with undirected edges."""
 
     @property
-    def adjacency(self) -> dict[str, list[str]]:
+    def adjacency(self) -> Dict[str, List[str]]:
         """Adjacency list treating edges as symmetric."""
         adj = {n.id: [] for n in self.nodes}
         for e in self.edges:
@@ -21,7 +22,7 @@ class UndirectedGraph(Graph):
         ):
             self.edges.append(edge)
 
-    def neighbors(self, node_id: str) -> list[Node]:
+    def neighbors(self, node_id: str) -> List[Node]:
         """Return all nodes connected to node_id."""
         ids = set()
         for e in self.edges:

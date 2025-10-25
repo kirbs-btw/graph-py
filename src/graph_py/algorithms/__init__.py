@@ -3,3 +3,4 @@ from .bfs import *
 from .dfs import *
 from .dijkstra import *
 from .set_operations import *
+from .traversal import *

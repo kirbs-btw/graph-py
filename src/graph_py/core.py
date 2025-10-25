@@ -4,7 +4,7 @@ import math
 import re
 from collections import Counter
 from abc import ABC, abstractmethod
-from typing import Optional, List, TYPE_CHECKING, Any, Sequence, Dict, Union, Iterable
+from typing import Optional, List, TYPE_CHECKING, Any, Sequence, Dict, Union, Iterable, Set, Tuple
 
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -49,7 +49,7 @@ class Node(BaseModel):
 
 class PropertyNode(Node):
     """Node subclass that stores arbitrary key/value properties."""
-    properties: dict[str, Any] = Field(default_factory=dict)
+    properties: Dict[str, Any] = Field(default_factory=dict)
 
     def set_property(self, key: str, value: Any) -> None:
         """Store a property value under the given key."""
@@ -66,7 +66,7 @@ _DEFAULT_TOKEN_PATTERN = re.compile(r"\w+")
 def _resolve_node_fields(node: Node, fields: Optional[Sequence[str]]) -> List[str]:
     """Determine which fields should be examined for a node search."""
     if fields is not None:
-        seen: set[str] = set()
+        seen: Set[str] = set()
         resolved: List[str] = []
         for field in fields:
             if field not in seen:
@@ -125,7 +125,7 @@ def _determine_token_pattern(parameters: Dict[str, Any]) -> re.Pattern[str]:
     return _DEFAULT_TOKEN_PATTERN
 
 
-def _prepare_stop_words(parameters: Dict[str, Any], *, case_sensitive: bool) -> set[str]:
+def _prepare_stop_words(parameters: Dict[str, Any], *, case_sensitive: bool) -> Set[str]:
     """Extract stop words from search parameters, normalising case."""
     stop_words_value = parameters.get("stop_words") if parameters else None
     if not stop_words_value:
@@ -146,7 +146,7 @@ def _tokenize_for_search(
     *,
     pattern: re.Pattern[str],
     case_sensitive: bool,
-    stop_words: set[str],
+    stop_words: Set[str],
 ) -> List[str]:
     """Tokenize text using the provided pattern and normalise case/stop words."""
     tokens = pattern.findall(text)
@@ -165,10 +165,10 @@ def _tokenize_documents(
     fields: Optional[Sequence[str]],
     pattern: re.Pattern[str],
     case_sensitive: bool,
-    stop_words: set[str],
-) -> List[tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]]:
+    stop_words: Set[str],
+) -> List[Tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]]:
     """Create tokenised representations for each node."""
-    documents: List[tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]] = []
+    documents: List[Tuple[Node, int, Counter[str], Dict[str, str], Dict[str, Counter[str]]]] = []
     for node in nodes:
         field_texts = _collect_field_texts(node, fields)
         if not field_texts:
@@ -495,7 +495,7 @@ class Graph(BaseModel):
         return next((e for e in self.edges if e.id == edge_id), None)
 
     @property
-    def adjacency(self) -> dict[str, list[str]]:
+    def adjacency(self) -> Dict[str, List[str]]:
         """View: adjacency list representation."""
         adj = {n.id: [] for n in self.nodes}
         for e in self.edges:

@@ -78,24 +78,21 @@ def cycles(graph: Graph) -> List[List[Node]]:
     """
     cycles_found = []
     visited = set()
-    rec_stack = set()
     
     def dfs_cycle(node: Node, parent: Optional[Node], path: List[Node]):
         visited.add(node.id)
-        rec_stack.add(node.id)
         path.append(node)
         
         for neighbor in node.neighbors:
             if neighbor.id not in visited:
                 dfs_cycle(neighbor, node, path)
-            elif neighbor.id in rec_stack and neighbor != parent:
+            elif neighbor != parent and neighbor in path:
                 # Found a cycle
                 cycle_start = path.index(neighbor)
                 cycle = path[cycle_start:] + [neighbor]
                 cycles_found.append(cycle[:])
         
         path.pop()
-        rec_stack.remove(node.id)
     
     for node in graph.nodes:
         if node.id not in visited:

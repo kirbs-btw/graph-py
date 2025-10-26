@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 if TYPE_CHECKING:
     from uuid import UUID
+    import networkx as nx
+    from matplotlib.figure import Figure
 
 
 class SearchError(RuntimeError):
@@ -503,6 +505,29 @@ class Graph(BaseModel):
             adj[e.target].append(e.source)
         return adj
 
+    def to_networkx(
+        self,
+        *,
+        directed: Optional[bool] = None,
+        include_node_attrs: bool = True,
+        include_edge_attrs: bool = True,
+    ) -> "nx.Graph":
+        """Create a networkx graph representation of this graph."""
+        from .visualization import graph_to_networkx
+
+        return graph_to_networkx(
+            self,
+            directed=directed,
+            include_node_attrs=include_node_attrs,
+            include_edge_attrs=include_edge_attrs,
+        )
+
+    def visualize(self, **kwargs: Any) -> "Figure":
+        """Render the graph using the visualization helpers."""
+        from .visualization import draw_graph
+
+        return draw_graph(self, **kwargs)
+
     def register_search_strategy(self, strategy: NodeSearchStrategy, *, alias: Optional[str] = None, default: bool = False) -> None:
         """Register a search strategy for later use."""
         key = alias or strategy.name
@@ -569,4 +594,3 @@ __all__ = [
     "SearchError",
     "UnknownStrategyError",
 ]
-

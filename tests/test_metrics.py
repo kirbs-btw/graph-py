@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 
 from graph_py.core import Edge, Graph, Node

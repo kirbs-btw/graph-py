@@ -3,6 +3,7 @@
 from .core import Graph, Node, Edge
 from .graphs import DirectedGraph, UndirectedGraph
 from .metrics import GraphMetrics, compute_metrics
+from .visualization import VisualizationError, draw_graph, graph_to_networkx
 
 __all__ = [
     'Graph',
@@ -12,5 +13,8 @@ __all__ = [
     'UndirectedGraph',
     'GraphMetrics',
     'compute_metrics',
+    'VisualizationError',
+    'draw_graph',
+    'graph_to_networkx',
 ]
 

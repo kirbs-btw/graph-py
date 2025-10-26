@@ -34,3 +34,21 @@ This is a project in memory python graph handling
 - BM25 ranking algorithm
 - Regex-based search
 - Vector search capabilities
+
+## Visualization
+You can quickly convert any `Graph` into a `networkx` object or render it with matplotlib:
+
+```python
+from graph_py import Graph, Node, Edge
+
+graph = Graph(id="demo")
+graph.add_node(Node(id="A", name="Alpha"))
+graph.add_node(Node(id="B", name="Beta"))
+graph.add_edge(Edge(id="A-B", source="A", target="B", name="connects"))
+
+# Convert to a networkx.Graph for further processing
+nx_graph = graph.to_networkx()
+
+# Create and save a visualization
+graph.visualize(layout="kamada_kawai", edge_label_field="name", save_path="demo.png")
+```

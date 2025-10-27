@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Tuple, Union
 
-from ..core import Graph, Node
+from ..core import Edge, Graph, Node
 
 DEFAULT_WEIGHT = 1.0
 
@@ -58,7 +58,16 @@ def get_edge_weight(
 
 def clone_node(node: Node) -> Node:
     """Create a detached copy of a node."""
-    clone = node.copy(deep=True)
+    if hasattr(node, "model_copy"):
+        clone = node.model_copy(deep=True)  # type: ignore[attr-defined]
+    else:
+        clone = node.copy(deep=True)
     clone.graph = None
     return clone
 
+
+def clone_edge(edge: Edge) -> Edge:
+    """Create a shallow copy of an edge."""
+    if hasattr(edge, "model_copy"):
+        return edge.model_copy(deep=True)  # type: ignore[attr-defined]
+    return edge.copy(deep=True)

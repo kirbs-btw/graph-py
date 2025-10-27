@@ -8,6 +8,10 @@ This is a project in memory python graph handling
 - DFS (Depth-First Search)
 - Dijkstra's algorithm
 - Bellman-Ford algorithm
+- A* search with custom heuristics
+
+## All-Pairs Shortest Paths
+- Floyd-Warshall algorithm
 
 ## Graph Traversal & Exploration
 - all_paths() - Find all paths between two nodes
@@ -22,18 +26,24 @@ This is a project in memory python graph handling
 ## Graph Operations
 - union - Combine two graphs
 - intersection - Find common elements between graphs
+- minimum_spanning_tree - Compute MSTs for weighted undirected graphs
 
 ## Graph Metrics
 - Node/edge counts, component analysis
 - Degree statistics for directed and undirected graphs
 - Distance measures (diameter, radius, average shortest paths)
 - Spectral radius of the adjacency matrix
+- Centrality measures (degree, closeness, betweenness, eigenvector)
 
 ## Advanced Search
 - TF-IDF search with configurable parameters
 - BM25 ranking algorithm
 - Regex-based search
 - Vector search capabilities
+
+## Network Flow
+- max_flow - Edmonds-Karp implementation with residual graph output
+- min_cut - Minimum s-t cut derived from max flow results
 
 ## Visualization
 You can quickly convert any `Graph` into a `networkx` object or render it with matplotlib:

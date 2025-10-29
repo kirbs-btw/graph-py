@@ -465,12 +465,48 @@ class Graph(BaseModel):
 
     def add_node(self, node: Node):
         """Add a node and link it to this graph."""
+        if self.get_node(node.id):
+            raise ValueError(f"Node with id '{node.id}' already exists in graph '{self.id}'.")
+        if node.graph and node.graph is not self:
+            raise ValueError(f"Node '{node.id}' already belongs to a different graph.")
         node.graph = self
         self.nodes.append(node)
 
     def add_edge(self, edge: Edge):
         """Add an edge and ensure referenced nodes exist."""
+        if self.get_edge(edge.id):
+            raise ValueError(f"Edge with id '{edge.id}' already exists in graph '{self.id}'.")
+        missing: List[str] = [node_id for node_id in (edge.source, edge.target) if not self.get_node(node_id)]
+        if missing:
+            missing_str = ", ".join(sorted(set(missing)))
+            raise ValueError(f"Edge '{edge.id}' references unknown nodes: {missing_str}.")
         self.edges.append(edge)
+
+    def remove_node(self, node: Union[str, Node]) -> Node:
+        """Remove a node by identifier and drop any incident edges."""
+        node_id = node if isinstance(node, str) else node.id
+        existing = self.get_node(node_id)
+        if existing is None:
+            raise ValueError(f"Node '{node_id}' is not present in graph '{self.id}'.")
+
+        self.nodes.remove(existing)
+        existing.graph = None
+        if self.edges:
+            self.edges[:] = [
+                edge for edge in self.edges if edge.source != node_id and edge.target != node_id
+            ]
+
+        return existing
+
+    def remove_edge(self, edge: Union[str, Edge]) -> Edge:
+        """Remove an edge by identifier."""
+        edge_id = edge if isinstance(edge, str) else edge.id
+        existing = self.get_edge(edge_id)
+        if existing is None:
+            raise ValueError(f"Edge '{edge_id}' is not present in graph '{self.id}'.")
+
+        self.edges.remove(existing)
+        return existing
 
     def number_of_nodes(self) -> int:
         """Return the total number of nodes stored in the graph."""

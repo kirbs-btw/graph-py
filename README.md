@@ -62,3 +62,14 @@ nx_graph = graph.to_networkx()
 # Create and save a visualization
 graph.visualize(layout="kamada_kawai", edge_label_field="name", save_path="demo.png")
 ```
+
+# Examples
+Hands-on examples live in the `examples/` package and can be executed without installing the library globally:
+
+```bash
+python -m examples.flow_demo          # Edmonds-Karp max-flow and min-cut
+python -m examples.ontology_demo      # Patient graph validated against an ICD snippet
+python -m examples.visualization_demo # Network rendering (requires matplotlib)
+```
+
+Each script prints a short walkthrough and writes outputs (such as rendered images) into the `examples/output/` directory.

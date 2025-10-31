@@ -1,49 +1,72 @@
 # graph-py
-This is a project in memory python graph handling
+An in-memory Python toolkit for building graphs, running classical algorithms, and analysing connectivity without relying on heavyweight databases.
 
+## Installation
+### From PyPI (recommended)
+```bash
+pip install graph-py
+```
 
-# Algorithms included
-## Pathfinding
-- BFS (Breadth-First Search)
-- DFS (Depth-First Search)
-- Dijkstra's algorithm
-- Bellman-Ford algorithm
-- A* search with custom heuristics
+### From source
+```bash
+git clone https://github.com/kirbs-btw/graph-py.git
+cd graph-py
+pip install .
+```
 
-## All-Pairs Shortest Paths
-- Floyd-Warshall algorithm
+For local development, install editable dependencies and tooling:
+```bash
+pip install -e ".[dev]"  # assumes dev extras are defined
+```
 
-## Graph Traversal & Exploration
-- all_paths() - Find all paths between two nodes
-- cycles() - Detect all cycles in the graph
-- strongly_connected_components() - Find SCCs using Kosaraju's algorithm
-- weakly_connected_components() - Find connected components
-- topological_sort() - Sort DAG nodes topologically
-- reachable_nodes() - Find all reachable nodes from a start node
-- is_dag() - Check if graph is a DAG
-- has_cycle() - Check if graph contains cycles
+## Quick Start
+```python
+from graph_py import Graph, Node, Edge
+from graph_py.algorithms.bfs import bfs
+from graph_py.algorithms.dijkstra import dijkstra
+from graph_py.metrics import compute_metrics
 
-## Graph Operations
-- union - Combine two graphs
-- intersection - Find common elements between graphs
-- minimum_spanning_tree - Compute MSTs for weighted undirected graphs
+# Build a graph
+graph = Graph(id="demo", name="Sample Network")
+graph.add_node(Node(id="A", name="Alpha"))
+graph.add_node(Node(id="B", name="Beta"))
+graph.add_node(Node(id="C", name="Gamma"))
+graph.add_edge(Edge(id="AB", source="A", target="B", name="fiber"))
+graph.add_edge(Edge(id="BC", source="B", target="C", name="fiber"))
 
-## Graph Metrics
-- Node/edge counts, component analysis
-- Degree statistics for directed and undirected graphs
-- Distance measures (diameter, radius, average shortest paths)
-- Spectral radius of the adjacency matrix
-- Centrality measures (degree, closeness, betweenness, eigenvector)
+# Traverse (returns Node objects)
+start = graph.get_node("A")
+target = graph.get_node("C")
+path = bfs(graph, start, target) if start and target else None
+print("BFS path:", [node.id for node in path] if path else None)
 
-## Advanced Search
-- TF-IDF search with configurable parameters
-- BM25 ranking algorithm
-- Regex-based search
-- Vector search capabilities
+# Weighted shortest path (defaults to unit weights when none supplied)
+path = dijkstra(graph, "A", "C")
+print("Dijkstra path:", [node.id for node in path] if path else None)
 
-## Network Flow
-- max_flow - Edmonds-Karp implementation with residual graph output
-- min_cut - Minimum s-t cut derived from max flow results
+# Metrics snapshot
+metrics = compute_metrics(graph)
+print("Degree distribution:", metrics.degree_distribution)
+```
+
+## Algorithm Overview
+| Category | Primary routines | Best when | Notes |
+| --- | --- | --- | --- |
+| Traversal & reachability | `bfs`, `dfs`, `all_paths`, `reachable_nodes` | Exploring unweighted graphs or enumerating neighbours | BFS gives shortest hop paths; DFS suits structural discovery and cycle detection. |
+| Shortest paths | `dijkstra`, `bellman_ford`, `a_star`, `floyd_warshall` | Routing with weights | Use Dijkstra for non-negative weights, Bellman-Ford when negatives exist, A* when a heuristic is available, and Floyd-Warshall for dense all-pairs analysis. |
+| Connectivity & structure | `strongly_connected_components`, `weakly_connected_components`, `topological_sort`, `cycles`, `is_dag`, `has_cycle` | Understanding graph shape | Ideal for dependency graphs and to validate acyclicity before scheduling. |
+| Spanning & flow | `minimum_spanning_tree`, `max_flow`, `min_cut` | Optimising cost or capacity | MST provides cheapest undirected backbones; max_flow/min_cut quantify throughput and bottlenecks. |
+| Similarity & search | `RegexNodeSearch`, `TFIDFNodeSearch`, `BM25NodeSearch`, vector search helpers | Finding nodes by text or semantic relevance | Register strategies on `Graph` for flexible node lookup experiences. |
+| Metrics & centrality | `compute_metrics`, `degree_centrality`, `closeness_centrality`, `betweenness_centrality`, `eigenvector_centrality` | Ranking influence and summarising graphs | Integrates with NetworkX to leverage robust numerical implementations. |
+| Visualization | `graph_to_networkx`, `draw_graph`, `Graph.visualize` | Communicating structure | Requires `matplotlib`; exports as images or feeds networkx for further styling. |
+
+## Choosing the Right Routine
+- Need the fewest hops in an unweighted network? Use BFS; for weighted edges stick with Dijkstra (non-negative) or Bellman-Ford (negative edges allowed).
+- Evaluating alternate routes between many pairs? `floyd_warshall` pre-computes an all-pairs matrix suitable for dense graphs with ≤ few hundred nodes.
+- Scheduling tasks or resolving dependencies? Validate DAG status with `is_dag`, then run `topological_sort`.
+- Diagnosing possible bottlenecks? Combine `max_flow` with `.min_cut()` to surface the critical edges whose removal partitions supply and demand.
+- Mapping real-world taxonomies? Use `Ontology` plus `OntologyValidator` to match graph nodes to canonical concepts and report inconsistencies.
+- Prioritising important actors? Degree and betweenness centrality highlight bridge nodes, while eigenvector centrality spotlights globally influential vertices.
 
 ## Visualization
 You can quickly convert any `Graph` into a `networkx` object or render it with matplotlib:

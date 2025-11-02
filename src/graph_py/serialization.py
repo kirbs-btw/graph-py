@@ -13,6 +13,13 @@ from .graphs import DirectedGraph
 GraphT = TypeVar("GraphT", bound=Graph)
 
 
+def _model_dump(model: Any, **kwargs: Any) -> Dict[str, Any]:
+    """Compatibility wrapper returning a dict for Pydantic v1/v2."""
+    if hasattr(model, "model_dump"):
+        return model.model_dump(**kwargs)  # type: ignore[call-arg]
+    return model.dict(**kwargs)  # type: ignore[attr-defined]
+
+
 def _qualified_name(cls: Type[Any]) -> str:
     return f"{cls.__module__}:{cls.__name__}"
 
@@ -65,7 +72,7 @@ def _restore_graphml_mapping(mapping: Dict[str, Any]) -> Dict[str, Any]:
 
 def graph_to_dict(graph: Graph) -> Dict[str, Any]:
     """Serialise a graph to a JSON-compatible dictionary."""
-    graph_attributes = graph.dict(exclude={"nodes", "edges"}, exclude_none=True)
+    graph_attributes = _model_dump(graph, exclude={"nodes", "edges"}, exclude_none=True)
     if "id" not in graph_attributes:
         graph_attributes["id"] = graph.id
 
@@ -81,14 +88,14 @@ def graph_to_dict(graph: Graph) -> Dict[str, Any]:
     for node in graph.nodes:
         node_payload = {
             "type": _qualified_name(type(node)),
-            "attributes": node.dict(exclude={"graph"}, exclude_none=True),
+            "attributes": _model_dump(node, exclude={"graph"}, exclude_none=True),
         }
         payload["nodes"].append(node_payload)
 
     for edge in graph.edges:
         edge_payload = {
             "type": _qualified_name(type(edge)),
-            "attributes": edge.dict(exclude_none=True),
+            "attributes": _model_dump(edge, exclude_none=True),
         }
         payload["edges"].append(edge_payload)
 

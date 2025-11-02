@@ -49,6 +49,21 @@ metrics = compute_metrics(graph)
 print("Degree distribution:", metrics.degree_distribution)
 ```
 
+## Persistence
+Export graphs for storage or interchange:
+
+```python
+from graph_py.serialization import graph_to_json, graph_from_json, graph_to_graphml, graph_from_graphml
+
+payload = graph_to_json(graph, path="graph.json")
+restored = graph_from_json(payload)
+
+graph_to_graphml(graph, "graph.graphml")
+round_tripped = graph_from_graphml("graph.graphml")
+```
+
+More examples live in `tests/test_serialization.py:1`.
+
 ## Algorithm Overview
 | Category | Primary routines | Best when | Notes |
 | --- | --- | --- | --- |

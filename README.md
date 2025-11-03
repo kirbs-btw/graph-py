@@ -77,7 +77,7 @@ More examples live in `tests/test_serialization.py:1`.
 
 ## Choosing the Right Routine
 - Need the fewest hops in an unweighted network? Use BFS; for weighted edges stick with Dijkstra (non-negative) or Bellman-Ford (negative edges allowed).
-- Evaluating alternate routes between many pairs? `floyd_warshall` pre-computes an all-pairs matrix suitable for dense graphs with ≤ few hundred nodes.
+- Evaluating alternate routes between many pairs? `floyd_warshall` pre-computes an all-pairs matrix suitable for dense graphs with up to a few hundred nodes.
 - Scheduling tasks or resolving dependencies? Validate DAG status with `is_dag`, then run `topological_sort`.
 - Diagnosing possible bottlenecks? Combine `max_flow` with `.min_cut()` to surface the critical edges whose removal partitions supply and demand.
 - Mapping real-world taxonomies? Use `Ontology` plus `OntologyValidator` to match graph nodes to canonical concepts and report inconsistencies.

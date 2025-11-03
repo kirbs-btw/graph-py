@@ -3,25 +3,18 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional, Type, TypeVar
 
 from ..core import Edge, Graph, Node
+from .._compat import model_dump
 
 GraphT = TypeVar("GraphT", bound=Graph)
 
 
-def _dump_model(model, exclude: Optional[Iterable[str]] = None) -> dict:
-    """Support both Pydantic v1 and v2 model dumping."""
-    exclude_set = set(exclude or [])
-    if hasattr(model, "model_dump"):
-        return model.model_dump(exclude=exclude_set)  # Pydantic v2
-    return model.dict(exclude=exclude_set)  # type: ignore[attr-defined]
-
-
 def _clone_node(node: Node) -> Node:
-    data = _dump_model(node, exclude={"graph"})
+    data = model_dump(node, exclude={"graph"})
     return node.__class__(**data)
 
 
 def _clone_edge(edge: Edge) -> Edge:
-    data = _dump_model(edge)
+    data = model_dump(edge)
     return edge.__class__(**data)
 
 

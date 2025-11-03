@@ -8,6 +8,7 @@ import networkx as nx
 
 from .core import Edge, Graph, Node, PropertyNode
 from .graphs import DirectedGraph
+from ._compat import model_dump
 
 if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.figure import Figure
@@ -40,11 +41,11 @@ def graph_to_networkx(
     nx_graph: nx.Graph = nx.DiGraph() if is_directed else nx.Graph()
 
     for node in graph.nodes:
-        attributes = node.dict(exclude={"graph"}, exclude_none=True) if include_node_attrs else {}
+        attributes = model_dump(node, exclude={"graph"}, exclude_none=True) if include_node_attrs else {}
         nx_graph.add_node(node.id, **attributes)
 
     for edge in graph.edges:
-        attributes = edge.dict(exclude={"source", "target"}, exclude_none=True) if include_edge_attrs else {}
+        attributes = model_dump(edge, exclude={"source", "target"}, exclude_none=True) if include_edge_attrs else {}
         nx_graph.add_edge(edge.source, edge.target, **attributes)
 
     return nx_graph

@@ -14,7 +14,7 @@ class UndirectedGraph(Graph):
         return adj
 
     def add_edge(self, edge: Edge):
-        """Add edge only if not already represented (A–B same as B–A)."""
+        """Add edge only if not already represented (A-B same as B-A)."""
         if not any(
             (e.source == edge.source and e.target == edge.target) or
             (e.source == edge.target and e.target == edge.source)

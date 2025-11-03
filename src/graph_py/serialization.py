@@ -9,15 +9,9 @@ import networkx as nx
 
 from .core import Edge, Graph, Node
 from .graphs import DirectedGraph
+from ._compat import model_dump as _model_dump
 
 GraphT = TypeVar("GraphT", bound=Graph)
-
-
-def _model_dump(model: Any, **kwargs: Any) -> Dict[str, Any]:
-    """Compatibility wrapper returning a dict for Pydantic v1/v2."""
-    if hasattr(model, "model_dump"):
-        return model.model_dump(**kwargs)  # type: ignore[call-arg]
-    return model.dict(**kwargs)  # type: ignore[attr-defined]
 
 
 def _qualified_name(cls: Type[Any]) -> str:

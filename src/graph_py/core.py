@@ -8,6 +8,8 @@ from typing import Optional, List, TYPE_CHECKING, Any, Sequence, Dict, Union, It
 
 from pydantic import BaseModel, Field, PrivateAttr
 
+from ._compat import model_dump
+
 if TYPE_CHECKING:
     from uuid import UUID
     import networkx as nx
@@ -464,11 +466,18 @@ class Graph(BaseModel):
         self.register_search_strategy(RegexNodeSearch(), default=True)
 
     def add_node(self, node: Node):
-        """Add a node and link it to this graph."""
+        """Add a node and link it to this graph.
+
+        If the node originates from another graph of a different concrete type,
+        clone it to avoid mutating the source graph while still allowing identifier reuse.
+        """
         if self.get_node(node.id):
             raise ValueError(f"Node with id '{node.id}' already exists in graph '{self.id}'.")
         if node.graph and node.graph is not self:
-            raise ValueError(f"Node '{node.id}' already belongs to a different graph.")
+            if type(node.graph) is type(self):
+                raise ValueError(f"Node '{node.id}' already belongs to a different graph.")
+            data = model_dump(node, exclude={"graph"})
+            node = node.__class__(**data)
         node.graph = self
         self.nodes.append(node)
 

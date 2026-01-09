@@ -110,4 +110,4 @@ python -m examples.ontology_demo      # Patient graph validated against an ICD s
 python -m examples.visualization_demo # Network rendering (requires matplotlib)
 ```
 
-Each script prints a short walkthrough and writes outputs (such as rendered images) into the `examples/output/` directory.
+Each script prints a short walkthrough and writes outputs into the `examples/output/` directory.
